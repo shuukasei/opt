@@ -1,0 +1,214 @@
+# opt
+#coding:utf-8
+import MeCab
+import numpy as np
+import kenlm
+import sys
+import time
+import codecs
+#from goto import goto, label
+#import goto
+tagger=MeCab.Tagger("-Ochasen")
+def wakati(text):
+        t=MeCab.Tagger("-Owakati")
+        m=t.parse(text)
+        result=m.rstrip("\n").split(" ")
+        return result
+
+def opt_2(word):
+        words=word.split()
+        n=len(words)
+#       print n
+        sentence=" ".join('%s'% x for x in words)
+#       print sentence
+        score=model.score(sentence)
+#       print score
+        bt_words=words
+        bt_score=score
+        total=0
+        while True:
+                count=0
+        #label .RESTART
+                for i in xrange(n):
+                        for j in xrange(i+2,i+n-1):
+                                new_words=sentence.split()
+                #               print " ".join('%s' % x for x in new_words)
+                                for k in xrange(0,(j-i)/2):
+                                        temp=new_words[(i+1+k)%n]
+                                        new_words[(i+1+k)%n]=new_words[(j-k)%n]
+                                        new_words[(j-k)%n]=temp
+                                new_sentence=" ".join('%s' % x for x in new_words)
+                        #       print new_sentence
+                                new_score=model.score(new_sentence)
+                        #       print new_score
+                                if new_score > bt_score:
+                                        bt_words=new_words
+                                        bt_score=new_score
+                                        count+=1                                       
+                #                       print 'improved by 2-opt\n'
+                                #       goto .IMPROVED;
+                sentence=" ".join('%s'% x for x in bt_words)
+#               print '************'
+                total+=count
+                if count==0: break
+        sentence=" ".join('%s'% x for x in bt_words)
+#       print sentence
+        return sentence, total
+
+def or_opt(word):
+        words=word.split()
+        n=len(words)
+#       print n
+        temp=[0]*n
+        sentence=" ".join('%s'% x for x in words)
+        score=model.score(sentence)
+#       print sentence, score
+        bt_words=words
+        bt_score=score
+        total=0
+        while True:
+                count =0
+                for i in xrange(n):
+                        for k in xrange(i+1,i+4):
+                                for j in xrange(k+1,i+n-1):
+                                        new_words=sentence.split()
+                                #       print " ".join('%s' % x for x in new_words)
+                                        for h in xrange(i+1,k+1):
+                                                temp[(h-i-1)]=new_words[(h%n)]
+                                        for h in xrange(k+1,j+1):
+                                                new_words[(h-k+i)%n]=new_words[(h%n)]
+                                        for h in xrange(0,k-i):
+                                                new_words[(j-k+i+1+h)%n]=temp[(k-i-1-h)]
+                                #       temp=new_words[i+1:k+1]
+                                #       new_words.insert((j+1)%n,temp)
+                                #       new_words[i+1:i+j-k]=new_words[k+1,j]
+                                #       new_words[i+j-k+1:j]=temp                      
+                                        new_sentence=" ".join('%s' % x for x in new_words)
+                                #       print new_sentence
+                                        news_score=model.score(new_sentence)
+                                #       print news_score
+                                        if news_score > bt_score:
+                                                bt_words=new_words
+                                                bt_score=news_score
+                                #               print 'improved by Or-OPT\n'
+                                        #       goto .IMPROVED;
+                                                count+=1
+                                        if(k==i+1):
+                                                continue;
+                                #               temp=new_words[i+1:k+1]
+                                        for h in xrange(i+1,k+1):
+                                                temp[h-i-1]=new_words[h%n]
+                                        for h in xrange(k+1,j+1):
+                                                new_words[(h-k+i)%n]=new_words[h%n]
+                                        for h in xrange(0,k-i):
+                                                new_words[(j-k+i+1+h)%n]=temp[k-i-1-h]
+                                #       new_words.insert((j+1)%n,temp)
+                                #       new_words[i+1:i+j-k]=new_words[k+1,j]
+                                #       new_words[i+j-k+1:j]=temp[::-1]
+                                        new_sentence=" ".join('%s' % x for x in new_words)
+                                #       print new_sentence
+                                        news_score=model.score(new_sentence)
+                                #       print news_score
+                                        if news_score > bt_score:
+                                                bt_words=new_words
+                                                bt_score=news_score
+                                                print 'improved by Or-OPT\n'
+                                                #goto .IMPROVED
+                                                count+=1
+                sentence=" ".join('%s'% x for x in bt_words)
+                print '*****************'
+                total+=count
+                if count==0:break
+        sentence=" ".join('%s'% x for x in bt_words)
+#       print sentence
+        return sentence, total
+
+
+def optimizel1(word):
+        word,total = opt_2(word)
+        word,total = or_opt(word)
+        print word
+def optimizel2(word):
+        word,total = or_opt(word)
+        word,total = opt_2(word)
+        print word
+
+#def optimizel1(word):
+#    while True:
+#        sent, _ = opt_2(word)
+#        sent,flag = or_opt(word)
+#        if flag == 0: return sent
+
+#def optimizel2(word):
+#    while True:
+#        sent,_ = or_opt(word)
+#        sent, flag = opt_2(word)
+#        if flag == 0: return sent
+
+#label .IMPROVED
+#       print ()
+#       goto .RESTRAT
+if __name__ == "__main__":
+#    filename = "test.txt"
+#    src = open(filename, "r").read()
+#    wordlist = wakati(src)
+#       stri='今年 の 活動 に 向け て 今後 の 課題 を 聞いた.'
+#       stri=wakati(text)
+#       for i in stri:
+#               print i
+        model=kenlm.LanguageModel('model/copus.bin')
+#       print model.score('[今日,は,いい,天気,です,ね,。]')
+#       print model.score('[は,いい,天気,です,ね,今日]')
+#       print model.score('今日 は いい 天気 です ね 。')
+#       print model.score('は いい 天気 です ね 今日 。')
+#       stri=u'は　です　今日　いい　天気　ね　。'
+#       print stri
+#       if len(sys.argv)>1:
+#               s=time.clock()
+#               if sys.argv[1]=='opt_2':
+#                       sent,_=opt_2(stri)
+#               elif sys.argv[1]=='or_opt':
+#                       sent,_=or_opt(stri)
+#               elif sys.argv[1]=='opt1':
+#                       sent=optimizel1(stri)
+#               else:
+#                       sent=optimizel2(stri)
+#               print sent
+
+#       f_open=codecs.open('model/1100wakati.txt','r','utf-8')
+        f_open=open('model/1100wakati.txt','r')
+        data=f_open.readlines()
+        f_open.close()
+        k=0
+        n=0
+        for stri in data:
+        #       print stri.encode('utf-8')
+                stri=stri.strip("\n")
+                s=stri.split()
+
+                sen=" ".join('%s'% x for x in s)
+        #       print stri.encode('utf-8')
+        #       print stri
+                if len(s)<1:
+                        continue
+                n+=1
+                if len(sys.argv)>1:
+                        s=time.clock()
+                        if sys.argv[1]=='opt_2':
+                                sent,_=opt_2(stri)
+                        elif sys.argv[1]=='or_opt':
+                                sent,_=or_opt(stri)
+                        elif sys.argv[1]=='opt1':
+                                sent=optimizel1(stri)
+                        else:
+                                sent=optimizel2(stri)
+                        if sent==sen:
+                                k+=1
+                #       print sent
+                #       print time.clock()-s
+        print '総文数：', n
+        print '戻れる文数：', k                                        
+                                        
+                                        
+                                        
+                                        
